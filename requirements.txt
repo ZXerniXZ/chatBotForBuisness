@@ -1,6 +1,5 @@
-sentence-transformers
-requests
-torch
-streamlit
-gradio
-python-dotenv 
+requests>=2.31.0
+uvicorn>=0.30.0
+fastapi>=0.110.0
+mcp>=1.2.0
+python-dotenv>=1.0.1 

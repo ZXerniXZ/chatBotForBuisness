@@ -51,6 +51,9 @@ with open("faq.jsonl", encoding="utf-8") as f:
 
 questions = [faq["question"] for faq in faqs]
 
+# Configurazione RAG
+RAG_TOP_K = int(os.getenv("RAG_TOP_K", "3"))
+
 # Switch via .env  →  EMB_MODEL=minilm | jina
 EMB_MODEL = os.getenv("EMB_MODEL", "minilm").lower()
 

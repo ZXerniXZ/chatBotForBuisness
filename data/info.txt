@@ -1,0 +1,5 @@
+Ristorante Demo
+Cucina italiana a Milano
+Contatti: +39 012 345 6789, info@ristorantedemo.it, https://ristorantedemo.example
+Orari: Lun-Dom 12:00-15:00, 19:00-23:00
+Indirizzo: Via Roma 1, Milano

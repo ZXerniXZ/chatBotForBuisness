@@ -1,0 +1,20 @@
+Antipasti:
+- Bruschetta al pomodoro
+- Tagliere di salumi
+Primi:
+- Spaghetti alla carbonara
+- Risotto ai funghi
+Secondi:
+- Pollo alla cacciatora
+- Filetto di orata al forno
+Contorni:
+- Patate al forno
+- Insalata mista
+Dolci:
+- Tiramisù
+- Panna cotta
+Bevande:
+- Acqua
+- Vino della casa
+- Caffè
+Note: Opzioni vegetariane disponibili
