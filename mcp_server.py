@@ -18,7 +18,7 @@ load_dotenv()
 # Minimal FastMCP server
 mcp = FastMCP(name="demo-basic-http")
 
-# --- Helpers per lettura file di dati ---
+# --- Helpers for reading data files ---
 from pathlib import Path
 
 def _get_data_dir() -> Path:
@@ -33,17 +33,17 @@ def _read_text(filename: str) -> str:
     file_path = data_dir / filename
     if not file_path.exists():
         raise ValueError(
-            f"File dati mancante: '{file_path}'. Crea il file o imposta RESTAURANT_DATA_DIR."
+            f"Missing data file: '{file_path}'. Create the file or set RESTAURANT_DATA_DIR."
         )
     try:
         return file_path.read_text(encoding="utf-8").strip()
     except Exception as e:
-        raise ValueError(f"Impossibile leggere '{file_path}': {e}") from e
+        raise ValueError(f"Cannot read '{file_path}': {e}") from e
 
 
-# --- Helpers per RAG con ChromaDB ---
+# --- Helpers for RAG with ChromaDB ---
 def _get_chroma_client():
-    """Inizializza e restituisce il client ChromaDB."""
+    """Initializes and returns the ChromaDB client."""
     data_dir = _get_data_dir()
     chroma_path = data_dir / "chroma_db"
     return chromadb.PersistentClient(
@@ -52,72 +52,191 @@ def _get_chroma_client():
     )
 
 
+# Global cache for collection and file hashes
+_collection_cache = None
+_file_hashes = {}
+
+def _get_file_hash(file_path: Path) -> str:
+    """Get a hash of file content and modification time."""
+    try:
+        stat = file_path.stat()
+        content = file_path.read_text(encoding='utf-8')
+        import hashlib
+        hash_content = hashlib.md5(f"{content}{stat.st_mtime}".encode()).hexdigest()
+        return hash_content
+    except Exception:
+        return ""
+
+def _check_files_changed() -> bool:
+    """Check if any files have changed since last cache."""
+    global _file_hashes
+    
+    data_dir = _get_data_dir()
+    text_extensions = {'.txt', '.md', '.rst', '.text'}
+    current_hashes = {}
+    
+    # Get current file hashes
+    for file_path in data_dir.rglob('*'):
+        if file_path.is_file() and file_path.suffix.lower() in text_extensions:
+            relative_path = str(file_path.relative_to(data_dir))
+            current_hashes[relative_path] = _get_file_hash(file_path)
+    
+    # Check if files changed
+    if _file_hashes != current_hashes:
+        _file_hashes = current_hashes
+        return True
+    
+    return False
+
 def _initialize_rag_database():
-    """Inizializza il database RAG con i dati del ristorante."""
+    """Initializes the RAG database with restaurant data by scanning for text files."""
+    global _collection_cache
+    
     try:
         client = _get_chroma_client()
         collection_name = "restaurant_knowledge"
         
-        # Verifica se la collection esiste già
+        # Check if files have changed
+        files_changed = _check_files_changed()
+        
+        # If collection exists and files haven't changed, return cached collection
+        if not files_changed and _collection_cache is not None:
+            try:
+                # Verify collection still exists
+                collection = client.get_collection(collection_name)
+                print(f"Using cached RAG database (no files changed)")
+                return collection
+            except:
+                # Collection was deleted, need to rebuild
+                pass
+        
+        # Files changed or collection doesn't exist, rebuild
+        print(f"Files changed or collection missing, rebuilding RAG database...")
+        
+        # Delete existing collection if it exists
         try:
-            collection = client.get_collection(collection_name)
-            return collection
+            client.delete_collection(collection_name)
+            print(f"Deleted existing collection: {collection_name}")
         except:
-            # Crea nuova collection
-            collection = client.create_collection(
-                name=collection_name,
-                metadata={"description": "Conoscenza del ristorante per RAG"}
+            pass  # Collection didn't exist
+        
+        # Create new collection
+        collection = client.create_collection(
+            name=collection_name,
+            metadata={"description": "Restaurant knowledge for RAG"}
+        )
+        
+        # Scan data directory for text files
+        data_dir = _get_data_dir()
+        text_extensions = {'.txt', '.md', '.rst', '.text'}
+        
+        documents = []
+        metadatas = []
+        ids = []
+        
+        print(f"Scanning directory: {data_dir}")
+        
+        # Find all text files in the data directory
+        for file_path in data_dir.rglob('*'):
+            if file_path.is_file() and file_path.suffix.lower() in text_extensions:
+                try:
+                    # Read file content
+                    content = file_path.read_text(encoding='utf-8').strip()
+                    if not content:  # Skip empty files
+                        continue
+                    
+                    # Determine file type based on name or path
+                    file_type = _determine_file_type(file_path)
+                    
+                    # Create relative path for source
+                    relative_path = file_path.relative_to(data_dir)
+                    
+                    documents.append(content)
+                    metadatas.append({
+                        "source": str(relative_path),
+                        "type": file_type,
+                        "filename": file_path.name,
+                        "full_path": str(file_path)
+                    })
+                    ids.append(f"{relative_path}_{len(documents)}")
+                    
+                    print(f"Loaded: {relative_path} (type: {file_type})")
+                    
+                except Exception as e:
+                    print(f"Error reading {file_path}: {e}")
+                    continue
+        
+        # Add documents if any exist
+        if documents:
+            collection.add(
+                documents=documents,
+                metadatas=metadatas,
+                ids=ids
             )
-            
-            # Carica e segmenta i dati
-            documents = []
-            metadatas = []
-            ids = []
-            
-            # Info del ristorante
-            try:
-                info_content = _read_text("info.txt")
-                documents.append(info_content)
-                metadatas.append({"source": "info.txt", "type": "restaurant_info"})
-                ids.append("info_001")
-            except:
-                pass
-            
-            # Menu di oggi
-            try:
-                menu_content = _read_text("menu_today.txt")
-                documents.append(menu_content)
-                metadatas.append({"source": "menu_today.txt", "type": "menu"})
-                ids.append("menu_today_001")
-            except:
-                pass
-            
-            # Location
-            try:
-                location_content = _read_text("location.txt")
-                documents.append(location_content)
-                metadatas.append({"source": "location.txt", "type": "location"})
-                ids.append("location_001")
-            except:
-                pass
-            
-            # Aggiungi documenti se ce ne sono
-            if documents:
-                collection.add(
-                    documents=documents,
-                    metadatas=metadatas,
-                    ids=ids
-                )
-            
-            return collection
-            
+            print(f"Added {len(documents)} documents to RAG database")
+        else:
+            print("No text files found to add to RAG database")
+        
+        # Cache the collection
+        _collection_cache = collection
+        
+        return collection
+        
     except Exception as e:
-        print(f"Errore nell'inizializzazione RAG: {e}")
+        print(f"Error in RAG initialization: {e}")
         return None
 
 
+def _determine_file_type(file_path: Path) -> str:
+    """Determines the type of a file based on its name and content."""
+    filename = file_path.name.lower()
+    
+    # Menu files
+    if 'menu' in filename:
+        if 'today' in filename:
+            return 'menu_today'
+        elif any(date_pattern in filename for date_pattern in ['2024', '2025', '2023']):
+            return 'menu_dated'
+        else:
+            return 'menu'
+    
+    # Location files
+    if any(loc_word in filename for loc_word in ['location', 'address', 'where', 'map']):
+        return 'location'
+    
+    # Contact files
+    if any(contact_word in filename for contact_word in ['contact', 'phone', 'email', 'info']):
+        return 'contact'
+    
+    # Hours files
+    if any(hour_word in filename for hour_word in ['hours', 'schedule', 'time', 'open']):
+        return 'hours'
+    
+    # Special files
+    if 'special' in filename or 'promo' in filename:
+        return 'special'
+    
+    if 'policy' in filename or 'terms' in filename:
+        return 'policy'
+    
+    # Default type based on extension
+    if file_path.suffix == '.md':
+        return 'markdown'
+    elif file_path.suffix == '.rst':
+        return 'restructured'
+    else:
+        return 'general'
+
+
+def _refresh_rag_database():
+    """Manually refresh the RAG database by clearing cache."""
+    global _collection_cache, _file_hashes
+    _collection_cache = None
+    _file_hashes = {}
+    print("RAG database cache cleared, will rebuild on next request")
+
 def _rag_search(query: str, top_k: int = 3) -> List[Dict[str, Any]]:
-    """Esegue ricerca RAG sui dati del ristorante."""
+    """Performs RAG search on restaurant data."""
     try:
         collection = _initialize_rag_database()
         if not collection:
@@ -142,19 +261,19 @@ def _rag_search(query: str, top_k: int = 3) -> List[Dict[str, Any]]:
         return formatted_results
         
     except Exception as e:
-        print(f"Errore nella ricerca RAG: {e}")
+        print(f"Error in RAG search: {e}")
         return []
 
 
 @mcp.tool()
 def echo(message: str | None = None, payload: str | None = None) -> str:
-    """Ritorna il messaggio così com'è (eco).
+    """Returns the message as-is (echo).
 
-    Accetta sia 'message' che 'payload' come alias per compatibilità.
+    Accepts both 'message' and 'payload' as aliases for compatibility.
     """
     value = message if message is not None else payload
     if value is None:
-        raise ValueError("Campo mancante: specificare 'message' o 'payload'.")
+        raise ValueError("Missing field: specify 'message' or 'payload'.")
     return value
 
 @mcp.tool()
@@ -169,34 +288,34 @@ def search(
     safesearch: str | None = None,
     api_key: str | None = None,
 ) -> dict[str, Any]:
-    """Esegue una ricerca Web usando Brave Search API.
+    """Performs a Web search using Brave Search API.
 
-    Parametri:
-    - q/query/text/message: testo della query (obbligatorio, alias equivalenti)
-    - count: numero risultati (default 3)
-    - country: paese, es. "it", "us" (default "it")
-    - search_lang: lingua dei risultati, es. "it", "en" (default "it")
-    - safesearch: livello filtro contenuti (es. "off", "moderate", "strict")
-    - api_key: chiave Brave (se assente, usa env BRAVE_API_KEY)
+    Parameters:
+    - q/query/text/message: query text (required, equivalent aliases)
+    - count: number of results (default 3)
+    - country: country, e.g. "it", "us" (default "it")
+    - search_lang: language of results, e.g. "it", "en" (default "it")
+    - safesearch: content filter level (e.g. "off", "moderate", "strict")
+    - api_key: Brave key (if missing, uses env BRAVE_API_KEY)
 
-    Restituisce una struttura compatta con i campi rilevanti per la LLM.
+    Returns a compact structure with fields relevant for the LLM.
     """
     key = api_key or os.environ.get("BRAVE_API_KEY")
     if not key:
         raise ValueError(
-            "Brave API key mancante: passare 'api_key' oppure impostare env 'BRAVE_API_KEY'."
+            "Missing Brave API key: pass 'api_key' or set env 'BRAVE_API_KEY'."
         )
 
-    # Normalizza query e count
+    # Normalize query and count
     q_value = q or query or text or message
     if not q_value:
-        raise ValueError("Parametro mancante: fornire 'q' o uno degli alias 'query'/'text'/'message'.")
+        raise ValueError("Missing parameter: provide 'q' or one of the aliases 'query'/'text'/'message'.")
 
     if isinstance(count, str):
         try:
             count = int(count)
         except ValueError:
-            raise ValueError("'count' deve essere un intero o una stringa numerica.")
+            raise ValueError("'count' must be an integer or numeric string.")
 
     url = "https://api.search.brave.com/res/v1/web/search"
     headers = {
@@ -219,11 +338,11 @@ def search(
         resp.raise_for_status()
         data = resp.json()
 
-        # Post-processing: estrai solo dati essenziali
+        # Post-processing: extract only essential data
         def strip_html(text: str | None) -> str:
             if not text:
                 return ""
-            # Rimuove tag HTML basilari come <strong>
+            # Removes basic HTML tags like <strong>
             import re as _re
             return _re.sub(r"<[^>]+>", "", text)
 
@@ -252,7 +371,7 @@ def search(
                     }
                 )
 
-        # Fallback su video se non ci sono risultati web
+        # Fallback to videos if no web results
         if not compact:
             videos = (data.get("videos") or {}).get("results") or []
             v_limited = videos[: max(0, count or 0)] if count is not None else videos
@@ -284,7 +403,7 @@ def search(
             f"Brave API HTTP error {resp.status_code}: {resp.text[:500]}"
         ) from http_err
     except Exception as e:
-        raise ValueError(f"Errore chiamando Brave API: {e}") from e
+        raise ValueError(f"Error calling Brave API: {e}") from e
 
 
 @mcp.tool()
@@ -292,92 +411,87 @@ def rag_search(
     query: str | None = None,
     question: str | None = None,
     q: str | None = None,
-    top_k: int | None = 3,
-    include_web_search: bool | None = False,
-    web_results_count: int | None = 2
+    top_k: int | None = 3
 ) -> dict[str, Any]:
-    """Esegue una ricerca RAG (Retrieval-Augmented Generation) sui dati del ristorante.
+    """Performs a RAG (Retrieval-Augmented Generation) search on restaurant data.
     
-    Questo tool combina ricerca semantica sui dati locali del ristorante con 
-    opzionale ricerca web per informazioni aggiuntive.
+    This tool performs semantic search on local restaurant data using ChromaDB.
     
-    Parametri:
-    - query/question/q: domanda o query di ricerca (obbligatorio, alias equivalenti)
-    - top_k: numero di risultati locali da recuperare (default 3)
-    - include_web_search: se includere anche ricerca web (default False)
-    - web_results_count: numero di risultati web se abilitato (default 2)
+    Parameters:
+    - query/question/q: search query or question (required, equivalent aliases)
+    - top_k: number of local results to retrieve (default 3)
     
-    Restituisce risultati strutturati con contenuto locale e opzionalmente web.
+    Returns structured results with local content.
     """
-    # Normalizza query
+    # Normalize query
     query_value = query or question or q
     if not query_value:
-        raise ValueError("Parametro mancante: fornire 'query', 'question' o 'q'.")
+        raise ValueError("Missing parameter: provide 'query', 'question' or 'q'.")
     
-    # Normalizza parametri
+    # Normalize parameters
     if isinstance(top_k, str):
         try:
             top_k = int(top_k)
         except ValueError:
-            raise ValueError("'top_k' deve essere un intero o una stringa numerica.")
+            raise ValueError("'top_k' must be an integer or numeric string.")
     
-    if isinstance(web_results_count, str):
-        try:
-            web_results_count = int(web_results_count)
-        except ValueError:
-            raise ValueError("'web_results_count' deve essere un intero o una stringa numerica.")
-    
-    # Esegui ricerca RAG locale
+    # Perform local RAG search
     local_results = _rag_search(query_value, top_k or 3)
     
-    # Prepara risultato base
+    # Prepare result
     result = {
         "query": query_value,
         "local_results": local_results,
-        "local_count": len(local_results),
-        "web_results": [],
-        "web_count": 0
+        "local_count": len(local_results)
     }
-    
-    # Aggiungi ricerca web se richiesto
-    if include_web_search:
-        try:
-            web_results = search(
-                q=query_value,
-                count=web_results_count or 2,
-                country="it",
-                search_lang="it"
-            )
-            result["web_results"] = web_results.get("results", [])
-            result["web_count"] = len(result["web_results"])
-        except Exception as e:
-            result["web_error"] = str(e)
     
     return result
 
 
-# --- Risorse MCP per il ristorante (da file in 'data/') ---
-@mcp.resource("restaurant://info")
+@mcp.tool()
+def rag_refresh() -> dict[str, Any]:
+    """Manually refresh the RAG database cache.
+    
+    This will clear the cache and force a rebuild of the database on the next search.
+    Use this when you've added new files and want them to be included immediately.
+    
+    Returns status of the refresh operation.
+    """
+    try:
+        _refresh_rag_database()
+        return {
+            "status": "success",
+            "message": "RAG database cache cleared. Database will be rebuilt on next search."
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Failed to refresh RAG database: {e}"
+        }
+
+
+# --- MCP Resources for restaurant (from files in 'data/') ---
+#@mcp.resource("restaurant://info")
 def restaurant_info() -> dict[str, Any]:
-    """Informazioni generali sul ristorante lette da 'data/info.txt'."""
+    """General restaurant information read from 'data/info.txt'."""
     content = _read_text("info.txt")
     return {"text": content}
 
 
-@mcp.resource("restaurant://location")
+#@mcp.resource("restaurant://location")
 def restaurant_location() -> dict[str, Any]:
-    """Dove si trova il ristorante, letto da 'data/location.txt'."""
+    """Where the restaurant is located, read from 'data/location.txt'."""
     content = _read_text("location.txt")
     return {"text": content}
 
 
-@mcp.resource("restaurant://menu/{date}")
+#@mcp.resource("restaurant://menu/{date}")
 def restaurant_menu(date: str) -> dict[str, Any]:
-    """Menù per la data richiesta, letto da file nella cartella 'data'.
+    """Menu for the requested date, read from files in the 'data' folder.
 
-    Regole file:
-    - Oggi: 'menu_today.txt'
-    - Data specifica (YYYY-MM-DD): 'menu_YYYY-MM-DD.txt'
+    File rules:
+    - Today: 'menu_today.txt'
+    - Specific date (YYYY-MM-DD): 'menu_YYYY-MM-DD.txt'
     """
     import re as _re
 
@@ -390,14 +504,14 @@ def restaurant_menu(date: str) -> dict[str, Any]:
         label = date_norm
     else:
         raise ValueError(
-            "Formato data non valido. Usa 'oggi'/'today' oppure 'YYYY-MM-DD'."
+            "Invalid date format. Use 'oggi'/'today' or 'YYYY-MM-DD'."
         )
 
     content = _read_text(filename)
     return {"date": label, "text": content}
 
 if __name__ == "__main__":
-    # Serve l'app Streamable HTTP su /mcp
+    # Serve the Streamable HTTP app on /mcp
     app = mcp.streamable_http_app()
     host = os.environ.get("MCP_SERVER_HOST", "127.0.0.1")
     port = int(os.environ.get("MCP_SERVER_PORT", "8001"))

@@ -1,0 +1,104 @@
+# =============================================================================
+# OpenRouter Configuration (for openrouter_bot.py)
+# =============================================================================
+# Get your API key from: https://openrouter.ai/keys
+OPENROUTER_API_KEY=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
+
+# OpenRouter Model (default: openai/gpt-oss-20b:free)
+# Other popular models:
+# - openai/gpt-oss-20b:free (free tier)
+# - anthropic/claude-3.5-sonnet
+# - openai/gpt-4o
+# - meta-llama/llama-3.1-8b-instruct
+# - google/gemini-pro
+OPENROUTER_MODEL=openai/gpt-oss-20b:free
+
+# OpenRouter API Base URL (usually don't need to change this)
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+
+# =============================================================================
+# Ollama Configuration (for ollama_bot.py)
+# =============================================================================
+# Ollama server host and port
+OLLAMA_HOST=http://localhost:11434
+
+# Ollama model to use (faster alternatives: qwen2.5:3b, llama3.2:1b, phi3:mini)
+OLLAMA_MODEL=llama3.1:8b
+
+# =============================================================================
+# Ollama Performance Optimization Settings
+# =============================================================================
+# Context window size (smaller = faster, larger = more context)
+OLLAMA_NUM_CTX=2048
+
+# Maximum tokens to generate (smaller = faster responses)
+OLLAMA_NUM_PREDICT=512
+
+# Top-k sampling (smaller = faster token selection)
+OLLAMA_TOP_K=10
+
+# Top-p sampling (lower = more deterministic)
+OLLAMA_TOP_P=0.9
+
+# Repetition penalty (1.0 = no penalty, higher = less repetition)
+OLLAMA_REPEAT_PENALTY=1.1
+
+# Number of CPU threads to use
+OLLAMA_NUM_THREAD=4
+
+# Number of GPU layers to use (0 = CPU only, 1 = use GPU if available)
+OLLAMA_NUM_GPU=1
+
+# Temperature (lower = faster, more focused responses)
+OLLAMA_TEMPERATURE=0.7
+
+# =============================================================================
+# MCP (Model Context Protocol) Configuration
+# =============================================================================
+# MCP Client Configuration
+# URL of your MCP HTTP client server
+MCP_CLIENT_URL=http://127.0.0.1:8000
+
+# MCP Server Configuration
+MCP_SERVER_URL=http://127.0.0.1:8001/mcp
+MCP_SERVER_HOST=127.0.0.1
+MCP_SERVER_PORT=8001
+
+# MCP Tool Cache TTL (in seconds)
+MCP_TOOL_TTL=60
+
+# =============================================================================
+# Restaurant Data Configuration
+# =============================================================================
+# Custom data directory for restaurant information
+# Default: "data" (relative to project root)
+RESTAURANT_DATA_DIR=data
+
+# =============================================================================
+# External API Keys
+# =============================================================================
+# Brave API Key (for web search functionality)
+# Get your API key from: https://brave.com/search/api/
+BRAVE_API_KEY=BSAuoYzVklJRy5oHtwsiiluaK4MwGnn
+
+# =============================================================================
+# Performance Presets (uncomment one of these for quick setup)
+# =============================================================================
+
+# Fast Mode (uncomment for maximum speed)
+# OLLAMA_NUM_CTX=1024
+# OLLAMA_NUM_PREDICT=256
+# OLLAMA_TOP_K=5
+# OLLAMA_TOP_P=0.8
+# OLLAMA_REPEAT_PENALTY=1.0
+# OLLAMA_NUM_THREAD=8
+# OLLAMA_TEMPERATURE=0.3
+
+# Quality Mode (uncomment for better responses)
+# OLLAMA_NUM_CTX=4096
+# OLLAMA_NUM_PREDICT=1024
+# OLLAMA_TOP_K=20
+# OLLAMA_TOP_P=0.95
+# OLLAMA_REPEAT_PENALTY=1.2
+# OLLAMA_NUM_THREAD=4
+# OLLAMA_TEMPERATURE=0.8 

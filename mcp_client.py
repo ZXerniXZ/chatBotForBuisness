@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from mcp.client.session import ClientSession
 from mcp.client.streamable_http import streamablehttp_client  # 👈 HTTP client
 
-# Carica variabili da .env se presente
+# Load variables from .env if present
 load_dotenv()
 
 MCP_SERVER_URL = os.environ.get("MCP_SERVER_URL", "http://127.0.0.1:8001/mcp")
@@ -20,7 +20,7 @@ class ToolCall(BaseModel):
     tool: str
     arguments: dict | None = None
 
-# Stato connessione (lazy)
+# Connection state (lazy)
 app.state._http_cm = None
 app.state._session_cm = None
 app.state.session = None
@@ -40,7 +40,7 @@ async def ensure_session():
         app.state.session = await app.state._session_cm.__aenter__()
         await app.state.session.initialize()
     except Exception as e:
-        # cleanup parziale in caso di errore
+        # partial cleanup in case of error
         if app.state._session_cm:
             try:
                 await app.state._session_cm.__aexit__(None, None, None)
@@ -54,7 +54,7 @@ async def ensure_session():
                 pass
             app.state._http_cm = None
         app.state.session = None
-        raise HTTPException(502, f"Connessione MCP fallita verso {MCP_SERVER_URL}: {e}")
+        raise HTTPException(502, f"MCP connection failed to {MCP_SERVER_URL}: {e}")
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -97,17 +97,17 @@ async def tools():
             items.append(item)
         return {"ok": True, "tools": items}
     except Exception as e:
-        raise HTTPException(500, f"Errore list_tools: {e}")
+        raise HTTPException(500, f"Error in list_tools: {e}")
 
 
-# --- Nuovi endpoint per Resources MCP ---
+# --- New endpoints for MCP Resources ---
 @app.get("/resources")
 async def resources():
-    """Elenca le risorse disponibili dal server MCP."""
+    """Lists available resources from the MCP server."""
     await ensure_session()
     try:
         items = []
-        # Risorse materiali
+        # Material resources
         res = await app.state.session.list_resources()
         resources_list = getattr(res, "resources", []) or []
         for r in resources_list:
@@ -117,7 +117,7 @@ async def resources():
                 "description": getattr(r, "description", None),
                 "type": "resource",
             })
-        # Template di risorse (es. restaurant://menu/{date})
+        # Resource templates (e.g. restaurant://menu/{date})
         tmpl = await app.state.session.list_resource_templates()
         templates_list = getattr(tmpl, "templates", None)
         if templates_list is None:
@@ -140,7 +140,7 @@ async def resources():
             deduped.append(it)
         return {"ok": True, "resources": deduped}
     except Exception as e:
-        raise HTTPException(500, f"Errore list_resources: {e}")
+        raise HTTPException(500, f"Error in list_resources: {e}")
 
 
 class ReadResourceBody(BaseModel):
@@ -148,11 +148,11 @@ class ReadResourceBody(BaseModel):
 
 @app.post("/read_resource")
 async def read_resource(body: ReadResourceBody):
-    """Legge una risorsa MCP data la sua URI completa."""
+    """Reads an MCP resource given its complete URI."""
     await ensure_session()
     try:
         result = await app.state.session.read_resource(body.uri)
-        # Alcuni client restituiscono un oggetto con campi come uri, mimeType, text, blob
+        # Some clients return an object with fields like uri, mimeType, text, blob
         payload = {
             "uri": getattr(result, "uri", body.uri),
             "mime_type": getattr(result, "mime_type", None) or getattr(result, "mimeType", None),
@@ -160,7 +160,7 @@ async def read_resource(body: ReadResourceBody):
         }
         return {"ok": True, "result": payload}
     except Exception as e:
-        raise HTTPException(500, f"Errore read_resource: {e}")
+        raise HTTPException(500, f"Error in read_resource: {e}")
 
 
 @app.post("/call_tool")
@@ -170,7 +170,7 @@ async def call_tool(body: ToolCall):
         result = await app.state.session.call_tool(body.tool, body.arguments or {})
         return {"ok": True, "result": result}
     except Exception as e:
-        raise HTTPException(500, f"Errore call_tool: {e}")
+        raise HTTPException(500, f"Error in call_tool: {e}")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000, reload=False)

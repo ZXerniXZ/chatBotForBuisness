@@ -1,194 +1,235 @@
-# ChatBot per Business - Sistema MCP con RAG
+######################################
+#TO-DO rebuild all readme from scrach#
+######################################
 
-Sistema completo di chatbot per business con server MCP, tool RAG (Retrieval-Augmented Generation) e integrazione Ollama.
 
-## 🚀 Avvio rapido
+# Business ChatBot - MCP System with RAG
+
+Complete business chatbot system with MCP server, RAG (Retrieval-Augmented Generation) tool and Ollama integration.
+
+## 🚀 Quick Start
 
 ```bash
-# Installazione dipendenze
+# Install dependencies
 pip install -r requirements.txt
 
-# Avvio server MCP con tool RAG
+# Test dynamic file discovery
+python test_dynamic_rag.py
+
+# Start MCP server with RAG tool
 python mcp_server.py
 
-# Avvio client MCP (in un altro terminale)
+# Start MCP client (in another terminal)
 python mcp_client.py
 
-# Test del tool RAG
-python test_rag.py
+# Start Ollama bot (in another terminal)
+python ollama_bot.py
 ```
 
-## 🏗️ Architettura
+## 🔄 Dynamic File Loading
 
-### Server MCP (`mcp_server.py`)
-- **Tool RAG**: Ricerca semantica sui dati del ristorante
-- **Tool Search**: Ricerca web con Brave API
-- **Risorse**: Accesso ai file di dati strutturati
-- **Porta**: 8001 (configurabile)
+The RAG system now automatically discovers and loads all text files from the `data/` directory:
 
-### Client MCP (`mcp_client.py`)
-- Interfaccia HTTP per i tool MCP
-- Porta: 8000 (configurabile)
+- **Automatic Discovery**: Scans for `.txt`, `.md`, `.rst`, `.text` files
+- **Smart Categorization**: Automatically detects file types based on names
+- **Auto-Rebuild**: Rebuilds ChromaDB on every server restart
+- **No Configuration**: Just add files to the `data/` directory
 
-### Tool RAG (`rag_search`)
-- **ChromaDB**: Database vettoriale per ricerca semantica
-- **Sentence Transformers**: Embedding per comprensione semantica
-- **Integrazione Web**: Fallback con Brave Search API
-- **Dati Automatici**: Caricamento da cartella `data/`
+**To add new content:**
+1. Add text files to the `data/` directory
+2. Restart the MCP server
+3. The RAG database will automatically rebuild with new content
 
-## 🔧 Configurazione
+## 🏗️ Architecture
 
-### Variabili d'Ambiente
+### MCP Server (`mcp_server.py`)
+- **RAG Tool**: Semantic search on restaurant data
+- **Search Tool**: Web search with Brave API
+- **Resources**: Access to structured data files
+- **Port**: 8001 (configurable)
+
+### MCP Client (`mcp_client.py`)
+- HTTP interface for MCP tools
+- Port: 8000 (configurable)
+
+### RAG Tool (`rag_search`)
+- **ChromaDB**: Vector database for semantic search
+- **Sentence Transformers**: Embedding for semantic understanding
+- **Web Integration**: Fallback with Brave Search API
+- **Automatic Data**: Loading from `data/` folder
+
+## 🔧 Configuration
+
+### Environment Variables
 ```bash
-# Directory dati personalizzata
+# Custom data directory
 export RESTAURANT_DATA_DIR="/path/to/data"
 
-# Brave API Key (per ricerca web)
+# Brave API Key (for web search)
 export BRAVE_API_KEY="your_api_key"
 
-# Server MCP
+# MCP Server
 export MCP_SERVER_HOST="127.0.0.1"
 export MCP_SERVER_PORT="8001"
 ```
 
-### File di Dati Supportati
-- `data/info.txt` → Informazioni ristorante
-- `data/menu_today.txt` → Menu del giorno  
-- `data/location.txt` → Posizione e contatti
+### Supported Data Files
+The system automatically discovers and loads all text files from the `data/` directory:
 
-## 🛠️ Tool Disponibili
+**Supported Formats:**
+- `.txt` - Plain text files
+- `.md` - Markdown files  
+- `.rst` - ReStructuredText files
+- `.text` - Text files
 
-### 1. `rag_search` - Tool RAG Principale
+**File Type Detection:**
+The system automatically categorizes files based on their names:
+- `menu_*.txt` → Menu information
+- `location*.txt` → Location data
+- `contact*.txt` → Contact information
+- `hours*.txt` → Opening hours
+- `special*.txt` → Special offers
+- `policy*.txt` → Policies and terms
+
+**Examples:**
+- `data/menu_today.txt` → Today's menu
+- `data/location.txt` → Restaurant location
+- `data/special_offers.md` → Special offers
+- `data/contact_info.txt` → Contact details
+
+## 🛠️ Available Tools
+
+### 1. `rag_search` - Main RAG Tool
 ```python
-# Ricerca solo locale
+# Local search only
 result = rag_search(
-    query="Menu di oggi",
+    query="Today's menu",
     top_k=3
 )
 
-# Ricerca ibrida (locale + web)
+# Hybrid search (local + web)
 result = rag_search(
-    query="Menu italiano",
+    query="Italian menu",
     top_k=2,
     include_web_search=True,
     web_results_count=2
 )
 ```
 
-### 2. `search` - Ricerca Web
+### 2. `search` - Web Search
 ```python
 result = search(
-    q="ristoranti italiani Milano",
+    q="Italian restaurants Milan",
     count=5,
     country="it"
 )
 ```
 
-### 3. `echo` - Tool di Test
+### 3. `echo` - Test Tool
 ```python
 result = echo(message="Test message")
 ```
 
-## 📊 Risorse MCP
+## 📊 MCP Resources
 
-- `restaurant://info` → Informazioni generali
-- `restaurant://location` → Posizione ristorante
-- `restaurant://menu/{date}` → Menu per data specifica
+- `restaurant://info` → General information
+- `restaurant://location` → Restaurant location
+- `restaurant://menu/{date}` → Menu for specific date
 
-## 🧪 Test e Esempi
+## 🧪 Tests and Examples
 
-### Test RAG
+### RAG Test
 ```bash
 python test_rag.py
 ```
 
-### Esempi di Utilizzo
+### Usage Examples
 ```bash
 python example_rag_usage.py
 ```
 
-### Configurazione
+### Configuration
 ```bash
 python rag_config.py
 ```
 
-## 📈 Vantaggi del Sistema
+## 📈 System Benefits
 
-### 🎯 Precisione
-- Ricerca semantica vs keyword matching
-- Score di rilevanza per ordinamento
-- Metadati per contesto
+### 🎯 Accuracy
+- Semantic search vs keyword matching
+- Relevance score for ranking
+- Metadata for context
 
-### 🔄 Flessibilità
-- Ricerca solo locale o ibrida
-- Parametri configurabili
-- Fallback automatico
+### 🔄 Flexibility
+- Local-only or hybrid search
+- Configurable parameters
+- Automatic fallback
 
-### 📈 Scalabilità
-- Database persistente
-- Caricamento automatico dati
-- Performance ottimizzate
+### 📈 Scalability
+- Persistent database
+- Automatic data loading
+- Optimized performance
 
-## 🔍 Esempi di Query RAG
+## 🔍 RAG Query Examples
 
-| Query | Tipo | Risultato Atteso |
+| Query | Type | Expected Result |
 |-------|------|------------------|
-| "Menu di oggi" | Locale | Menu dal file `menu_today.txt` |
-| "Orari apertura" | Locale | Orari da `info.txt` |
-| "Dove si trova?" | Locale | Indirizzo da `info.txt` e `location.txt` |
-| "Opzioni vegetariane" | Locale | Note dal menu |
-| "Ricette italiane" | Ibrida | Menu locale + ricette web |
+| "Today's menu" | Local | Menu from `menu_today.txt` file |
+| "Opening hours" | Local | Hours from `info.txt` |
+| "Where is it located?" | Local | Address from `info.txt` and `location.txt` |
+| "Vegetarian options" | Local | Notes from menu |
+| "Italian recipes" | Hybrid | Local menu + web recipes |
 
 ## 🐛 Troubleshooting
 
-### Errore ChromaDB
+### ChromaDB Error
 ```bash
-# Verifica installazione
+# Check installation
 pip install chromadb --upgrade
 
-# Ricrea database
+# Recreate database
 rm -rf data/chroma_db/
 python test_rag.py
 ```
 
-### Errore Sentence Transformers
+### Sentence Transformers Error
 ```bash
-# Download modelli
+# Download models
 python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
 ```
 
-### Errore Brave API
+### Brave API Error
 ```bash
-# Verifica API key
+# Check API key
 echo $BRAVE_API_KEY
 
-# Test connessione
+# Test connection
 curl -H "X-Subscription-Token: $BRAVE_API_KEY" "https://api.search.brave.com/res/v1/web/search?q=test"
 ```
 
-### Server MCP non risponde
+### MCP Server not responding
 ```bash
-# Verifica processi
+# Check processes
 ps aux | grep mcp_server
 
-# Riavvia server
+# Restart server
 pkill -f mcp_server.py
 python mcp_server.py
 ```
 
-## 📚 Documentazione
+## 📚 Documentation
 
-- [RAG_README.md](RAG_README.md) - Documentazione dettagliata del tool RAG
-- [rag_config.py](rag_config.py) - Configurazione e parametri
-- [test_rag.py](test_rag.py) - Test e validazione
-- [example_rag_usage.py](example_rag_usage.py) - Esempi di utilizzo
+- [RAG_README.md](RAG_README.md) - Detailed RAG tool documentation
+- [rag_config.py](rag_config.py) - Configuration and parameters
+- [test_rag.py](test_rag.py) - Tests and validation
+- [example_rag_usage.py](example_rag_usage.py) - Usage examples
 
-## 🔮 Sviluppi Futuri
+## 🔮 Future Developments
 
-- [ ] Supporto per più lingue
-- [ ] Cache intelligente
-- [ ] Aggiornamento automatico dati
-- [ ] Metriche di performance
-- [ ] Interfaccia web per gestione
-- [ ] Integrazione con più fonti dati
-- [ ] API REST completa 
+- [ ] Multi-language support
+- [ ] Intelligent caching
+- [ ] Automatic data updates
+- [ ] Performance metrics
+- [ ] Web interface for management
+- [ ] Integration with more data sources
+- [ ] Complete REST API 
