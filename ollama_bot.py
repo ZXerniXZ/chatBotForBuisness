@@ -9,7 +9,7 @@ import json
 import requests
 
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
-MODEL = os.environ.get("OLLAMA_MODEL", "llama3:latest")
+MODEL = os.environ.get("OLLAMA_MODEL", "qwen3:4b")
 
 # Endpoint del client MCP persistente
 MCP_CLIENT_URL = os.environ.get("MCP_CLIENT_URL", "http://127.0.0.1:8000")
@@ -85,11 +85,28 @@ def build_system_prompt(tools: list[str]) -> str:
         howto = (
             "Strumenti MCP disponibili: " + elenco + ".\n"
             "Risorse MCP disponibili: " + elenco_res + ".\n"
-            "Se devi LEGGERE una risorsa, emetti SOLO un blocco come questo e nient'altro testo:\n"
+            "\n"
+            "ISTRUZIONI IMPORTANTI:\n"
+            "1. Se l'utente ti chiede di USARE un tool specifico, emetti SOLO il blocco MCP corrispondente.\n"
+            "2. Se l'utente ti chiede di CERCARE o TROVARE informazioni, usa rag_search.\n"
+            "3. Se l'utente ti chiede di LEGGERE una risorsa, emetti SOLO:\n"
             "```mcp\n"
             '{"resource":"<URI_COMPLETA>"}\n'
             "```\n"
-            "Se devi ESEGUIRE un tool, usa il formato tool come indicato sotto e attendi il risultato."
+            "4. Se l'utente ti chiede di ESEGUIRE un tool, emetti SOLO:\n"
+            "```mcp\n"
+            '{"tool":"<NOME_TOOL>","arguments":{"<PARAMETRO>":"<VALORE>"}}\n'
+            "```\n"
+            "\n"
+            "ESEMPI:\n"
+            "- Per cercare il menu: ```mcp\n"
+            '{"tool":"rag_search","arguments":{"query":"menu di oggi"}}\n'
+            "```\n"
+            "- Per cercare informazioni: ```mcp\n"
+            '{"tool":"rag_search","arguments":{"query":"informazioni ristorante"}}\n'
+            "```\n"
+            "\n"
+            "NON scrivere testo prima o dopo i blocchi MCP quando chiami tool o leggi risorse."
         )
         return base + howto
     else:
