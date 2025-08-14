@@ -448,28 +448,6 @@ def rag_search(
     return result
 
 
-@mcp.tool()
-def rag_refresh() -> dict[str, Any]:
-    """Manually refresh the RAG database cache.
-    
-    This will clear the cache and force a rebuild of the database on the next search.
-    Use this when you've added new files and want them to be included immediately.
-    
-    Returns status of the refresh operation.
-    """
-    try:
-        _refresh_rag_database()
-        return {
-            "status": "success",
-            "message": "RAG database cache cleared. Database will be rebuilt on next search."
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Failed to refresh RAG database: {e}"
-        }
-
-
 # --- MCP Resources for restaurant (from files in 'data/') ---
 #@mcp.resource("restaurant://info")
 def restaurant_info() -> dict[str, Any]:
