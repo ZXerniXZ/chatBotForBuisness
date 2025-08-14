@@ -6,7 +6,7 @@
 OLLAMA_HOST=http://localhost:11434
 
 # Ollama model to use (faster alternatives: qwen2.5:3b, llama3.2:1b, phi3:mini)
-OLLAMA_MODEL=llama3.1:8b
+OLLAMA_MODEL=qwen3:1.7b
 
 # =============================================================================
 # Ollama Performance Optimization Settings
