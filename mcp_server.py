@@ -11,6 +11,8 @@ import chromadb
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
 import json
+from datetime import datetime
+import pytz
 
 # Carica variabili da .env se presente
 load_dotenv()
@@ -446,6 +448,70 @@ def rag_search(
     }
     
     return result
+
+
+@mcp.tool()
+def current_time(
+    timezone: str | None = None,
+    format: str | None = None
+) -> dict[str, Any]:
+    """Gets the current date and time.
+    
+    Parameters:
+    - timezone: timezone name (e.g., 'UTC', 'Europe/Rome', 'America/New_York'). 
+                If not specified, uses local system timezone.
+    - format: output format ('iso', 'human', 'timestamp', 'date_only', 'time_only').
+              Default is 'human' which provides a readable format.
+    
+    Returns current time information in the specified format and timezone.
+    """
+    try:
+        # Handle timezone
+        if timezone:
+            try:
+                tz = pytz.timezone(timezone)
+                now = datetime.now(tz)
+            except pytz.exceptions.UnknownTimeZoneError:
+                raise ValueError(f"Unknown timezone: {timezone}")
+        else:
+            # Use local timezone
+            now = datetime.now()
+        
+        # Handle format
+        format_type = (format or "human").lower()
+        
+        if format_type == "iso":
+            result = {
+                "iso": now.isoformat(),
+                "timezone": str(now.tzinfo) if now.tzinfo else "local"
+            }
+        elif format_type == "timestamp":
+            result = {
+                "timestamp": now.timestamp(),
+                "timezone": str(now.tzinfo) if now.tzinfo else "local"
+            }
+        elif format_type == "date_only":
+            result = {
+                "date": now.strftime("%Y-%m-%d"),
+                "timezone": str(now.tzinfo) if now.tzinfo else "local"
+            }
+        elif format_type == "time_only":
+            result = {
+                "time": now.strftime("%H:%M:%S"),
+                "timezone": str(now.tzinfo) if now.tzinfo else "local"
+            }
+        else:  # human format (default)
+            result = {
+                "datetime": now.strftime("%Y-%m-%d %H:%M:%S"),
+                "date": now.strftime("%A, %B %d, %Y"),
+                "time": now.strftime("%H:%M:%S"),
+                "timezone": str(now.tzinfo) if now.tzinfo else "local"
+            }
+        
+        return result
+        
+    except Exception as e:
+        raise ValueError(f"Error getting current time: {e}")
 
 
 # --- MCP Resources for restaurant (from files in 'data/') ---
