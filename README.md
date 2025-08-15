@@ -8,6 +8,9 @@ Complete business chatbot system with MCP server, RAG (Retrieval-Augmented Gener
 ```bash
 #rename requiments.txt to .env
 
+# create venv
+python3 -m venv .venv && source .venv/bin/activate
+
 # Install dependencies
 pip install -r requirements.txt
 
@@ -39,7 +42,6 @@ result = rag_search(
     query="Today's menu",
     top_k=3
 )
-
 ```
 
 ### 2. `search` - Web Search
@@ -51,7 +53,25 @@ result = search(
 )
 ```
 
-### 3. `echo` - Test Tool
+### 3. `current_time` - Time and Date Tool
+```python
+# Get current time in local timezone (human format)
+result = current_time()
+
+# Get current time in specific timezone
+result = current_time(timezone="Europe/Rome")
+
+# Get time in different formats
+result = current_time(timezone="UTC", format="iso")
+result = current_time(format="date_only")
+result = current_time(format="time_only")
+result = current_time(format="timestamp")
+
+# Available formats: 'human', 'iso', 'timestamp', 'date_only', 'time_only'
+# Available timezones: 'UTC', 'Europe/Rome', 'America/New_York', etc.
+```
+
+### 4. `echo` - Test Tool
 ```python
 result = echo(message="Test message")
 ```
