@@ -20,7 +20,7 @@ python mcp_client.py
 # Start Ollama bot 
 python ollama_bot.py
 ```
-
+#todo create RAG_README.md with detailed rag tool documentation#
 ## 🔄 Dynamic File Loading
 
 The RAG system now automatically discovers and loads all text files from the `data/` directory:
